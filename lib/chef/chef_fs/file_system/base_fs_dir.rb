@@ -40,6 +40,11 @@ class Chef
           true
         end
 
+        # A dir without children is empty
+        def empty?
+          children == []
+        end
+
         # Abstract: children
       end
     end
