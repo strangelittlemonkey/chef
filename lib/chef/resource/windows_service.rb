@@ -37,6 +37,9 @@ class Chef
         @provider = Chef::Provider::Service::Windows
         @allowed_actions.push(:configure_startup)
         @startup_type = :automatic
+        @run_as = ""
+        @run_as_password = ""
+        @display_name = ""
       end
 
       def startup_type(arg=nil)
@@ -46,6 +49,30 @@ class Chef
           :startup_type,
           arg,
           :equal_to => [ :automatic, :manual, :disabled ]
+        )
+      end
+
+      def display_name(arg=nil)
+        set_or_return(
+          :display_name,
+          arg,
+          :kind_of => [ String ]
+        )
+      end
+
+      def run_as(arg=nil)
+        set_or_return(
+          :run_as,
+          arg,
+          :kind_of => [ String ]
+        )
+      end
+
+      def run_as_password(arg=nil)
+        set_or_return(
+          :run_as_password,
+          arg,
+          :kind_of => [ String ]
         )
       end
     end
