@@ -62,6 +62,17 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
 
   def start_service
     if Win32::Service.exists?(@new_resource.service_name)
+      # reconfiguration is idempotent, so just do it.
+      new_config = {
+        service_name: @new_resource.service_name,
+        display_name: @new_resource.display_name,
+        service_start_name: @new_resource.run_as,
+        password: @new_resource.run_as_password,
+      }.reject { |k,v| v.nil? || v.length == 0 }
+
+      Win32::Service.configure(new_config)
+      Chef::Log.info "#{@new_resource} configured with #{new_config.inspect}"
+
       state = current_state
       if state == RUNNING
         Chef::Log.debug "#{@new_resource} already started - nothing to do"
