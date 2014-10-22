@@ -135,14 +135,17 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
     end
 
     describe "running as a different account" do
+      let(:old_run_as) { @new_resource.run_as }
+      let(:old_run_as_password) { @new_resource.run_as_password }
+
       before {
         @new_resource.run_as(".\\wallace")
         @new_resource.run_as_password("Wensleydale")
       }
 
       after {
-        @new_resource.run_as(nil)
-        @new_resource.run_as_password(nil)
+        @new_resource.run_as(old_run_as)
+        @new_resource.run_as_password(old_run_as_password)
       }
 
       it "should call #grant_service_logon if the :run_as and :run_as_password attributes are present" do
