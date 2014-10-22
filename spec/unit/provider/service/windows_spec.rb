@@ -382,6 +382,7 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
     after {
       # only needed for the second test.
       ::File.delete(@provider.grant_policyfile_name(username)) rescue nil
+      ::File.delete(@provider.grant_logfile_name(username)) rescue nil
     }
 
     it "calls Mixlib::Shellout with the correct command string" do
