@@ -39,6 +39,8 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
     Win32::Service.stub(:config_info).with(@new_resource.service_name).and_return(
       double("ConfigStruct", :start_type => "auto start"))
     Win32::Service.stub(:exists?).and_return(true)
+    Win32::Service.stub(:configure).and_return(Win32::Service)
+
   end
 
   it "should set the current resources service name to the new resources service name" do
