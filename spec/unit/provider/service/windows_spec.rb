@@ -134,6 +134,23 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
       @new_resource.updated_by_last_action?.should be_false
     end
 
+    describe "running as a different account" do
+      before {
+        @new_resource.run_as(".\\wallace")
+        @new_resource.run_as_password("Wensleydale")
+      }
+
+      after {
+        @new_resource.run_as(nil)
+        @new_resource.run_as_password(nil)
+      }
+
+      it "should call #grant_service_logon if the :run_as and :run_as_password attributes are present" do
+        expect(Win32::Service).to receive(:start)
+        expect(@provider).to receive(:grant_service_logon).and_return(true)
+        @provider.start_service
+      end
+    end
   end
 
 

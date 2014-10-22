@@ -73,6 +73,10 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
       Win32::Service.configure(new_config)
       Chef::Log.info "#{@new_resource} configured with #{new_config.inspect}"
 
+      if [:service_start_name, :password].all? { |k| new_config.has_key?(k) }
+        grant_service_logon(new_config[:service_start_name])
+      end
+
       state = current_state
       if state == RUNNING
         Chef::Log.debug "#{@new_resource} already started - nothing to do"
@@ -238,33 +242,34 @@ Revision=1
 EOS
   end
 
+  # these functions let the tests delete the files in the failure case.
   def grant_logfile_name(username)
     "#{Dir.tmpdir}/logon_grant-#{username}-#{$$}.log"
   end
 
   def grant_policyfile_name(username)
-    "#{Dir.tmpdir}/service_logon_policy-#{$$}.inf"
+    "#{Dir.tmpdir}/service_logon_policy-#{username}-#{$$}.inf"
   end
 
   def grant_service_logon(username)
     logfile = grant_logfile_name(username)
-    pol_file = ::File.new(grant_policyfile_name(username), 'w')
+    policy_file = ::File.new(grant_policyfile_name(username), 'w')
 
     begin
-      pol_file.puts(make_policy_text(username))
-      pol_file.close   # need to flush the buffer.
+      policy_file.puts(make_policy_text(username))
+      policy_file.close   # need to flush the buffer.
 
-      cmd = %Q{secedit.exe /configure /db "secedit.sdb" /cfg "#{pol_file.path}" /areas USER_RIGHTS /log #{logfile}}
+      cmd = %Q{secedit.exe /configure /db "secedit.sdb" /cfg "#{policy_file.path}" /areas USER_RIGHTS /log #{logfile}}
       runner = Mixlib::ShellOut.new(cmd)
       runner.run_command
       output = runner.stdout
       code = $?
       if output !~ /The task has completed successfully/
-        raise Chef::Exceptions::Service, "Logon grant failed with policy file #{pol_file.path}. Please see #{logfile} for details."
+        raise Chef::Exceptions::Service, "Logon grant failed with policy file #{policy_file.path}. Please see #{logfile} for details."
       else
         Chef::Log.info "Grant service logon to user '#{username}' successful."
-        # at least on Windows 8, there's no logfile on success.
-        ::File.delete(pol_file)
+        # at least on Windows 8, there's no logfile on success that we need to delete.
+        ::File.delete(policy_file)
       end
     end
     true
