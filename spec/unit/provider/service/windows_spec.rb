@@ -18,6 +18,7 @@
 #
 
 require 'spec_helper'
+require 'mixlib/shellout'
 
 describe Chef::Provider::Service::Windows, "load_current_resource" do
   before(:each) do
@@ -362,6 +363,35 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
 
     it "raises an exception when given an unknown start type" do
       expect { @provider.send(:set_startup_type, :fire_truck) }.to raise_error(Chef::Exceptions::ConfigurationError)
+    end
+  end
+
+  describe Chef::Provider::Service::Windows, "grant_service_logon" do
+    let(:username) { "unit_test_user" }
+    let(:success_string) { "The task has completed successfully.\r\nSee logfile etc." }
+    let(:failure_string) { "Look on my works, ye Mighty, and despair!" }
+    let(:command) {
+      %Q{secedit.exe /configure /db "secedit.sdb" /cfg "#{@provider.grant_policyfile_name(username)}" /areas USER_RIGHTS /log #{@provider.grant_logfile_name(username)}}
+    }
+
+    before {
+      expect_any_instance_of(Mixlib::ShellOut).to receive(:initialize).with(command).and_call_original
+      expect_any_instance_of(Mixlib::ShellOut).to receive(:run_command).and_return(nil)
+    }
+
+    after {
+      # only needed for the second test.
+      ::File.delete(@provider.grant_policyfile_name(username)) rescue nil
+    }
+
+    it "calls Mixlib::Shellout with the correct command string" do
+      expect_any_instance_of(Mixlib::ShellOut).to receive(:stdout).and_return(success_string)
+      expect(@provider.grant_service_logon(username)).to be_true
+    end
+
+    it "raises an exception when the grant command fails" do
+      expect_any_instance_of(Mixlib::ShellOut).to receive(:stdout).and_return(failure_string)
+      expect {@provider.grant_service_logon(username)}.to raise_error(Chef::Exceptions::Service)
     end
   end
 end

@@ -224,6 +224,52 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
     @new_resource.enabled(nil)
   end
 
+  def make_policy_text(username)
+    text = <<-EOS
+[Unicode]
+Unicode=yes
+[System Access]
+PasswordComplexity = 0
+[Privilege Rights]
+SeServiceLogonRight = #{username},*S-1-5-80-0
+[Version]
+signature="$CHICAGO$"
+Revision=1
+EOS
+  end
+
+  def grant_logfile_name(username)
+    "#{Dir.tmpdir}/logon_grant-#{username}-#{$$}.log"
+  end
+
+  def grant_policyfile_name(username)
+    "#{Dir.tmpdir}/service_logon_policy-#{$$}.inf"
+  end
+
+  def grant_service_logon(username)
+    logfile = grant_logfile_name(username)
+    pol_file = ::File.new(grant_policyfile_name(username), 'w')
+
+    begin
+      pol_file.puts(make_policy_text(username))
+      pol_file.close   # need to flush the buffer.
+
+      cmd = %Q{secedit.exe /configure /db "secedit.sdb" /cfg "#{pol_file.path}" /areas USER_RIGHTS /log #{logfile}}
+      runner = Mixlib::ShellOut.new(cmd)
+      runner.run_command
+      output = runner.stdout
+      code = $?
+      if output !~ /The task has completed successfully/
+        raise Chef::Exceptions::Service, "Logon grant failed with policy file #{pol_file.path}. Please see #{logfile} for details."
+      else
+        Chef::Log.info "Grant service logon to user '#{username}' successful."
+        # at least on Windows 8, there's no logfile on success.
+        ::File.delete(pol_file)
+      end
+    end
+    true
+  end
+
   private
   def current_state
     Win32::Service.status(@new_resource.service_name).current_state
