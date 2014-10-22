@@ -375,7 +375,7 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
     }
 
     before {
-      expect_any_instance_of(Mixlib::ShellOut).to receive(:initialize).with(command).and_call_original
+      expect(Mixlib::ShellOut).to receive(:new).with(command).and_call_original
       expect_any_instance_of(Mixlib::ShellOut).to receive(:run_command).and_return(nil)
     }
 
