@@ -85,7 +85,17 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
           shell_out!(@new_resource.start_command)
         else
           spawn_command_thread do
-            Win32::Service.start(@new_resource.service_name)
+            begin
+              Win32::Service.start(@new_resource.service_name)
+            rescue SystemCallError => ex
+              if ex.message =~ /The service did not start due to a logon failure/
+                Chef::Log.error ex.message
+                raise Chef::Exceptions::Service,
+                "Service #{@new_resource} did not start due to a logon failure: possibly the specified user '#{@new_resource.run_as}' does not have the 'log on as a service' privilege, or the password is incorrect."
+              else
+                raise ex
+              end
+            end
           end
           wait_for_state(RUNNING)
         end
