@@ -232,10 +232,8 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
     text = <<-EOS
 [Unicode]
 Unicode=yes
-[System Access]
-PasswordComplexity = 0
 [Privilege Rights]
-SeServiceLogonRight = #{username},*S-1-5-80-0
+SeServiceLogonRight = \\\\#{username.sub(/^\.\\/, '')},*S-1-5-80-0
 [Version]
 signature="$CHICAGO$"
 Revision=1
@@ -244,38 +242,47 @@ EOS
 
   # these functions let the tests delete the files in the failure case.
   def grant_logfile_name(username)
-    "#{Dir.tmpdir}/logon_grant-#{username}-#{$$}.log"
+    Chef::Util::PathHelper.canonical_path("#{Dir.tmpdir}/logon_grant-#{clean_username(username)}-#{$$}.log", prefix=false)
   end
 
   def grant_policyfile_name(username)
-    "#{Dir.tmpdir}/service_logon_policy-#{username}-#{$$}.inf"
+    Chef::Util::PathHelper.canonical_path("#{Dir.tmpdir}/service_logon_policy-#{clean_username(username)}-#{$$}.inf", prefix=false)
   end
 
   def grant_service_logon(username)
     logfile = grant_logfile_name(username)
     policy_file = ::File.new(grant_policyfile_name(username), 'w')
+    policy_text = make_policy_text(username)
 
     begin
-      policy_file.puts(make_policy_text(username))
+      Chef::Log.debug "Policy file text:\n#{policy_text}"
+      policy_file.puts(policy_text)
       policy_file.close   # need to flush the buffer.
 
-      cmd = %Q{secedit.exe /configure /db "secedit.sdb" /cfg "#{policy_file.path}" /areas USER_RIGHTS /log #{logfile}}
+      cmd = %Q{secedit.exe /configure /db "secedit.sdb" /cfg "#{policy_file.path}" /areas USER_RIGHTS SECURITYPOLICY SERVICES /log "#{logfile}"}
+      Chef::Log.debug "Granting logon-as-service privilege with: #{cmd}"
       runner = Mixlib::ShellOut.new(cmd)
       runner.run_command
       output = runner.stdout
-      code = $?
+
       if output !~ /The task has completed successfully/
+        Chef::Log.fatal "Logon-as-service grant failed with output: #{output}"
         raise Chef::Exceptions::Service, "Logon grant failed with policy file #{policy_file.path}. Please see #{logfile} for details."
-      else
-        Chef::Log.info "Grant service logon to user '#{username}' successful."
-        # at least on Windows 8, there's no logfile on success that we need to delete.
-        ::File.delete(policy_file)
       end
+
+      Chef::Log.info "Grant logon-as-service to user '#{username}' successful."
+
+      # there's no logfile on complete success; otherwise, leave it in place for examination.
+      ::File.delete(policy_file)
     end
     true
   end
 
   private
+  def clean_username(username)
+    username.gsub(/[\/\\.]+/, '')
+  end
+
   def current_state
     Win32::Service.status(@new_resource.service_name).current_state
   end
