@@ -388,7 +388,7 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
     end
   end
 
-  describe Chef::Provider::Service::Windows, "grant_service_logon" do
+  describe "grant_service_logon" do
     let(:username) { "unit_test_user" }
     let(:success_string) { "The task has completed successfully.\r\nSee logfile etc." }
     let(:failure_string) { "Look on my works, ye Mighty, and despair!" }
@@ -415,6 +415,21 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
     it "raises an exception when the grant command fails" do
       expect_any_instance_of(Mixlib::ShellOut).to receive(:stdout).and_return(failure_string)
       expect {@provider.grant_service_logon(username)}.to raise_error(Chef::Exceptions::Service)
+    end
+  end
+
+  describe "cleaning usernames" do
+    it "correctly reformats usernames to create valid filenames" do
+      expect(@provider.clean_username_for_path("\\\\problem username/oink.txt")).to eq("_problem_username_oink_txt")
+      expect(@provider.clean_username_for_path("boring_username")).to eq("boring_username")
+    end
+
+    it "correctly reformats local usernames for the policy file" do
+      expect(@provider.canonicalize_local_username(".\\maryann")).to eq("maryann")
+      expect(@provider.canonicalize_local_username("maryann")).to eq("maryann")
+
+      expect(@provider.canonicalize_local_username("\\\\maryann")).to eq("\\\\maryann")
+      expect(@provider.canonicalize_local_username("mydomain\\\\maryann")).to eq("mydomain\\\\maryann")
     end
   end
 end

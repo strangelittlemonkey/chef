@@ -233,7 +233,7 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
 [Unicode]
 Unicode=yes
 [Privilege Rights]
-SeServiceLogonRight = \\\\#{username.sub(/^\.\\/, '')},*S-1-5-80-0
+SeServiceLogonRight = \\\\#{canonicalize_local_username(username)},*S-1-5-80-0
 [Version]
 signature="$CHICAGO$"
 Revision=1
@@ -242,11 +242,11 @@ EOS
 
   # these functions let the tests delete the files in the failure case, by making sure they have workable paths.
   def grant_logfile_name(username)
-    Chef::Util::PathHelper.canonical_path("#{Dir.tmpdir}/logon_grant-#{clean_username(username)}-#{$$}.log", prefix=false)
+    Chef::Util::PathHelper.canonical_path("#{Dir.tmpdir}/logon_grant-#{clean_username_for_path(username)}-#{$$}.log", prefix=false)
   end
 
   def grant_policyfile_name(username)
-    Chef::Util::PathHelper.canonical_path("#{Dir.tmpdir}/service_logon_policy-#{clean_username(username)}-#{$$}.inf", prefix=false)
+    Chef::Util::PathHelper.canonical_path("#{Dir.tmpdir}/service_logon_policy-#{clean_username_for_path(username)}-#{$$}.inf", prefix=false)
   end
 
   def grant_service_logon(username)
@@ -278,11 +278,18 @@ EOS
     true
   end
 
-  private
-  def clean_username(username)
-    username.gsub(/[\/\\.]+/, '')
+  # remove characters that make for broken or wonky filenames.
+  def clean_username_for_path(username)
+    username.gsub(/[\/\\. ]+/, '_')
   end
 
+  # the security policy file only seems to accept \\username, so fix .\username or .\\username.
+  # TODO: this probably has to be fixed to handle various valid Windows names correctly.
+  def canonicalize_local_username(username)
+    username.sub(/^\.\\+/, '')
+  end
+
+  private
   def current_state
     Win32::Service.status(@new_resource.service_name).current_state
   end
