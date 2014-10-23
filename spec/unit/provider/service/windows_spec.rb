@@ -393,7 +393,7 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
     let(:success_string) { "The task has completed successfully.\r\nSee logfile etc." }
     let(:failure_string) { "Look on my works, ye Mighty, and despair!" }
     let(:command) {
-      %Q{secedit.exe /configure /db "secedit.sdb" /cfg "#{@provider.grant_policyfile_name(username)}" /areas USER_RIGHTS /log #{@provider.grant_logfile_name(username)}}
+      %Q{secedit.exe /configure /db "secedit.sdb" /cfg "#{@provider.grant_policyfile_name(username)}" /areas USER_RIGHTS SECURITYPOLICY SERVICES /log "#{@provider.grant_logfile_name(username)}"}
     }
 
     before {

@@ -240,7 +240,7 @@ Revision=1
 EOS
   end
 
-  # these functions let the tests delete the files in the failure case.
+  # these functions let the tests delete the files in the failure case, by making sure they have workable paths.
   def grant_logfile_name(username)
     Chef::Util::PathHelper.canonical_path("#{Dir.tmpdir}/logon_grant-#{clean_username(username)}-#{$$}.log", prefix=false)
   end
@@ -272,8 +272,8 @@ EOS
 
       Chef::Log.info "Grant logon-as-service to user '#{username}' successful."
 
-      # there's no logfile on complete success; otherwise, leave it in place for examination.
       ::File.delete(policy_file)
+      ::File.delete(logfile) rescue nil     # logfile is not always present at end.
     end
     true
   end
