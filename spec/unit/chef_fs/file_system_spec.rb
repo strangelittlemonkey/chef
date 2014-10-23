@@ -141,7 +141,6 @@ describe Chef::ChefFS::FileSystem do
         Chef::ChefFS::FileSystem.resolve_path(fs, '/y').empty?.should be true
       end
       it 'is not a directory and can\'t be tested /x' do
-#require 'pry'; binding.pry
         lambda { Chef::ChefFS::FileSystem.resolve_path(fs, '/x').empty? }.should raise_error(NoMethodError)
       end
     end
